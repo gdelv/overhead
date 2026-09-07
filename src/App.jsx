@@ -9,9 +9,27 @@ const climb = vr => (vr == null || Math.abs(vr) < 200) ? '' : vr > 0 ? ' ↑ cli
 const reducedMotion = () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
 // Broadcast ICAO emitter category, collapsed server-side to small/medium/large.
-// Only the two extremes get called out — medium is the common case and stays quiet.
-const SIZE_SCALE = { small: 0.7, medium: 1, large: 1.45 }
+// Only the two extremes get called out in text — medium is the common case
+// and stays quiet — but each tier gets its own top-down silhouette so the
+// airframe itself reads at a glance instead of just a bigger/smaller arrow.
 const SIZE_WORD = { small: 'light', large: 'heavy' }
+const PLANE_SHAPE = {
+  // Light GA single: straight, unswept wings — no sweep is what actually
+  // separates a Cessna/Piper silhouette from a jet at this icon size.
+  small: 'M0,-9 L1.1,-4.5 L1.1,6 L0,8 L-1.1,6 L-1.1,-4.5 Z' +
+    'M-6.5,0.2 L6.5,0.2 L6.5,1.6 L-6.5,1.6 Z' +
+    'M-2.8,6.4 L2.8,6.4 L2.8,7.5 L-2.8,7.5 Z',
+  // Narrow-body jet: swept wing, pointed nose, small tailplane.
+  medium: 'M0,-9 L1,-6 L1,7 L0,9 L-1,7 L-1,-6 Z' +
+    'M-8,5.6 L-1,1 L1,1 L8,5.6 L8,6.9 L1,3.1 L-1,3.1 L-8,6.9 Z' +
+    'M-2.3,7 L2.3,7 L2.3,8.1 L-2.3,8.1 Z',
+  // Wide-body jet: fuller fuselage, broader swept wing, podded underwing
+  // engines visible — the twin-engine silhouette from the reference photo.
+  large: 'M0,-9.5 L1.4,-6 L1.4,7.2 L0,10 L-1.4,7.2 L-1.4,-6 Z' +
+    'M-9.5,5.8 L-1.4,1 L1.4,1 L9.5,5.8 L9.5,7.3 L1.4,3.3 L-1.4,3.3 L-9.5,7.3 Z' +
+    'M-5.3,4 L-3.9,4 L-3.9,6.4 L-5.3,6.4 Z M5.3,4 L3.9,4 L3.9,6.4 L5.3,6.4 Z' +
+    'M-2.8,7.4 L2.8,7.4 L2.8,8.7 L-2.8,8.7 Z',
+}
 
 // Fading comet-tail behind the sweep line, trailing opposite the spin direction.
 function Sweep({ dur = '7s' }) {
@@ -66,14 +84,13 @@ function Radar({ flights, radius, selected, onSelect, heading }) {
         const d = Math.min(a.dst / radius, 1) * 100
         const ang = (a.dir - 90) * Math.PI / 180
         const x = (d * Math.cos(ang)).toFixed(1), y = (d * Math.sin(ang)).toFixed(1)
-        const scale = SIZE_SCALE[a.size] ?? 1
         const tag = SIZE_WORD[a.size]
         const route = a.origin && a.destination ? ` · ${a.origin.iata || a.origin.icao} → ${a.destination.iata || a.destination.icao}` : ''
         return (
           <path key={a.id}
             className={'plane' + (a.id === selected ? ' sel' : '')}
-            d="M0,-7 L4,5 L0,3 L-4,5 Z"
-            transform={`translate(${x},${y}) rotate(${a.trk || 0}) scale(${scale})`}
+            d={PLANE_SHAPE[a.size] || PLANE_SHAPE.medium}
+            transform={`translate(${x},${y}) rotate(${a.trk || 0})`}
             onClick={() => onSelect(a.id)}>
             <title>{a.call}{tag ? ` · ${tag}` : ''}{route}</title>
           </path>

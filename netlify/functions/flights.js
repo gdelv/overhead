@@ -16,8 +16,14 @@ function bearing(a, b) {
   return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360
 }
 
+// Both APIs sit behind bot protection that 403s Node's default User-Agent, so
+// pretend to be a browser.
+const BROWSER_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36'
+
 async function fromAdsbLol(h, r) {
-  const res = await fetch(`https://api.adsb.lol/v2/point/${h.lat}/${h.lon}/${r}`)
+  const res = await fetch(`https://api.adsb.lol/v2/point/${h.lat}/${h.lon}/${r}`, {
+    headers: { 'user-agent': BROWSER_UA },
+  })
   if (!res.ok) throw new Error('adsb.lol ' + res.status)
   const j = await res.json()
   return (j.ac || []).filter(a => a.lat != null).map(a => ({
@@ -34,7 +40,7 @@ async function fromAdsbLol(h, r) {
 async function fromOpenSky(h, r) {
   const dLat = r / 60, dLon = r / (60 * Math.cos(h.lat * Math.PI / 180))
   const u = `https://opensky-network.org/api/states/all?lamin=${h.lat - dLat}&lomin=${h.lon - dLon}&lamax=${h.lat + dLat}&lomax=${h.lon + dLon}`
-  const res = await fetch(u)
+  const res = await fetch(u, { headers: { 'user-agent': BROWSER_UA } })
   if (!res.ok) throw new Error('OpenSky ' + res.status)
   const j = await res.json()
   return (j.states || []).filter(s => s[6] != null).map(s => {
@@ -66,11 +72,11 @@ export default async (request) => {
   let ac
   try {
     ac = await fromAdsbLol(here, radius)
-  } catch {
+  } catch (e1) {
     try {
       ac = await fromOpenSky(here, radius)
-    } catch (e) {
-      return new Response(JSON.stringify({ error: e.message }), {
+    } catch (e2) {
+      return new Response(JSON.stringify({ error: `adsb.lol: ${e1.message}; opensky: ${e2.message}` }), {
         status: 502,
         headers: { 'content-type': 'application/json' },
       })

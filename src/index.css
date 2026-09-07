@@ -26,6 +26,15 @@ button.quiet{background:transparent;color:var(--ink);border:1px solid var(--line
 .me{fill:var(--amber)}
 .plane{fill:var(--ink);cursor:pointer}
 .plane.sel{fill:var(--amber)}
+.facing{fill:var(--amber);opacity:.35}
+@media (prefers-reduced-motion:no-preference){ .facing{transition:transform .3s ease} }
+
+/* Compass heading: only meaningful on touch devices with an orientation sensor. */
+.mobile-only{display:none}
+@media (hover:none) and (pointer:coarse){
+  button.mobile-only{display:inline-block}
+  path.mobile-only{display:block}
+}
 .status{text-align:center;color:var(--ink-soft);font-size:14px;min-height:20px;margin-bottom:16px}
 .list{display:flex;flex-direction:column;gap:8px}
 .row{background:var(--card);border-radius:10px;padding:12px 14px;display:grid;

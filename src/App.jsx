@@ -8,7 +8,7 @@ const REFRESH_MS = 10000
 const compass = d => ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(d / 45) % 8]
 const climb = vr => (vr == null || Math.abs(vr) < 200) ? '' : vr > 0 ? ' ↑ climbing' : ' ↓ descending'
 
-function Radar({ flights, radius, selected, onSelect }) {
+function Radar({ flights, radius, selected, onSelect, heading }) {
   const rings = [1 / 3, 2 / 3, 1]
   return (
     <svg className="radar" viewBox="-110 -110 220 220" role="img" aria-label="Radar view of nearby aircraft">
@@ -20,6 +20,9 @@ function Radar({ flights, radius, selected, onSelect }) {
       ))}
       <line className="ring" x1="0" y1="-100" x2="0" y2="100" />
       <line className="ring" x1="-100" y1="0" x2="100" y2="0" />
+      {heading != null && (
+        <path className="facing mobile-only" d="M0,-26 L11,4 L0,-6 L-11,4 Z" transform={`rotate(${heading})`} />
+      )}
       <circle className="me" r="4" />
       {flights.map(a => {
         const d = Math.min(a.dst / radius, 1) * 100
@@ -77,6 +80,8 @@ export default function App() {
   const [selected, setSelected] = useState(null)
   const [status, setStatus] = useState({ text: 'Starting…' })
   const [place, setPlace] = useState(null)
+  const [compassOn, setCompassOn] = useState(false)
+  const [heading, setHeading] = useState(null)
 
   useEffect(() => {
     let alive = true
@@ -84,6 +89,31 @@ export default function App() {
     fetchPlace(here).then(p => { if (alive) setPlace(p) }).catch(() => { if (alive) setPlace(null) })
     return () => { alive = false }
   }, [here])
+
+  useEffect(() => {
+    if (!compassOn) return
+    function onOrient(e) {
+      // iOS gives a ready-made compass heading; other browsers only give
+      // device-frame alpha, which points the opposite way round.
+      const h = e.webkitCompassHeading ?? (e.alpha != null ? (360 - e.alpha) % 360 : null)
+      if (h != null) setHeading(h)
+    }
+    const evt = 'ondeviceorientationabsolute' in window ? 'deviceorientationabsolute' : 'deviceorientation'
+    window.addEventListener(evt, onOrient)
+    return () => window.removeEventListener(evt, onOrient)
+  }, [compassOn])
+
+  async function enableCompass() {
+    try {
+      if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+        const perm = await DeviceOrientationEvent.requestPermission()
+        if (perm !== 'granted') return setStatus({ text: 'Compass permission denied.' })
+      }
+      setCompassOn(true)
+    } catch (e) {
+      setStatus({ text: `Compass unavailable (${e.message}).` })
+    }
+  }
 
   useEffect(() => {
     let alive = true
@@ -137,9 +167,10 @@ export default function App() {
         <select value={radius} onChange={e => setRadius(+e.target.value)}>
           {[10, 30, 60, 100].map(r => <option key={r} value={r}>{r} nm</option>)}
         </select>
+        <button className="quiet mobile-only" onClick={enableCompass}>{compassOn ? 'Compass on' : 'Enable compass'}</button>
       </div>
 
-      <Radar flights={flights} radius={radius} selected={selected} onSelect={setSelected} />
+      <Radar flights={flights} radius={radius} selected={selected} onSelect={setSelected} heading={compassOn ? heading : null} />
 
       <div className="status">{status.err ? <div className="err">{status.text}</div> : status.text}</div>
 

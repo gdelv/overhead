@@ -93,11 +93,23 @@ export default function App() {
 
   useEffect(() => {
     if (!compassOn) return
+    // Track an unwrapped angle so the CSS rotation always turns the short way
+    // and keeps going past 360/0 instead of snapping back when the raw
+    // 0-360 reading wraps around.
+    let continuous = null
     function onOrient(e) {
       // iOS gives a ready-made compass heading; other browsers only give
       // device-frame alpha, which points the opposite way round.
-      const h = e.webkitCompassHeading ?? (e.alpha != null ? (360 - e.alpha) % 360 : null)
-      if (h != null) setHeading(h)
+      const raw = e.webkitCompassHeading ?? (e.alpha != null ? (360 - e.alpha) % 360 : null)
+      if (raw == null) return
+      if (continuous == null) {
+        continuous = raw
+      } else {
+        const prevMod = ((continuous % 360) + 360) % 360
+        const delta = (((raw - prevMod + 180) % 360 + 360) % 360) - 180
+        continuous += delta
+      }
+      setHeading(continuous)
     }
     const evt = 'ondeviceorientationabsolute' in window ? 'deviceorientationabsolute' : 'deviceorientation'
     window.addEventListener(evt, onOrient)

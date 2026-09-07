@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { fetchFlights } from './flights.js'
+import { fetchPlace } from './geocode.js'
 
 const HOME = { lat: 40.7685, lon: -73.4660 } // Plainview, NY
 const REFRESH_MS = 10000
@@ -39,8 +40,8 @@ function Radar({ flights, radius, selected, onSelect }) {
 }
 
 function Route({ origin, destination }) {
-  if (!origin || !destination) return null
   const code = ap => ap.iata || ap.icao
+  if (!origin || !destination) return <div className="route route-unknown">No filed route</div>
   return (
     <div className="route" title={`${origin.name} → ${destination.name}`}>
       {code(origin)} <span className="arrow">→</span> {code(destination)}
@@ -71,10 +72,18 @@ export default function App() {
   const [latIn, setLatIn] = useState(HOME.lat.toString())
   const [lonIn, setLonIn] = useState(HOME.lon.toString())
   const [here, setHere] = useState(HOME)
-  const [radius, setRadius] = useState(30)
+  const [radius, setRadius] = useState(10)
   const [flights, setFlights] = useState([])
   const [selected, setSelected] = useState(null)
   const [status, setStatus] = useState({ text: 'Starting…' })
+  const [place, setPlace] = useState(null)
+
+  useEffect(() => {
+    let alive = true
+    setPlace(null)
+    fetchPlace(here).then(p => { if (alive) setPlace(p) }).catch(() => { if (alive) setPlace(null) })
+    return () => { alive = false }
+  }, [here])
 
   useEffect(() => {
     let alive = true
@@ -115,7 +124,10 @@ export default function App() {
   return (
     <>
       <h1>Overhead</h1>
-      <p className="sub">Aircraft within {radius} nautical miles of you, refreshed every 10 seconds.</p>
+      <p className="sub">
+        Aircraft within {radius} nautical miles of {here.lat.toFixed(4)}, {here.lon.toFixed(4)}
+        {place?.town && (place?.state ? ` (${place.town}, ${place.state})` : ` (${place.town})`)}, refreshed every 10 seconds.
+      </p>
 
       <div className="loc">
         <button onClick={useMyLocation}>Use my location</button>

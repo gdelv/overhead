@@ -35,6 +35,7 @@ button.quiet{background:transparent;color:var(--ink);border:1px solid var(--line
 .dist{font-size:19px;font-weight:600;text-align:right;white-space:nowrap}
 .route{grid-column:1/-1;font-size:14px;font-weight:600;color:var(--ink-soft);letter-spacing:.02em}
 .route .arrow{color:var(--amber)}
+.route-unknown{font-weight:400;font-style:italic;opacity:.7}
 .meta{grid-column:1/-1;color:var(--ink-soft);font-size:14px;line-height:1.5}
 .empty{text-align:center;color:var(--ink-soft);padding:30px 10px;line-height:1.5}
 .err{color:#b3411a;background:rgba(224,138,30,.12);padding:12px;border-radius:8px;line-height:1.5}

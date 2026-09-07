@@ -6,23 +6,57 @@ const REFRESH_MS = 10000
 
 const compass = d => ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(d / 45) % 8]
 const climb = vr => (vr == null || Math.abs(vr) < 200) ? '' : vr > 0 ? ' ↑ climbing' : ' ↓ descending'
+const reducedMotion = () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
-function Radar({ flights, radius, selected, onSelect, heading }) {
+// Fading comet-tail behind the sweep line, trailing opposite the spin direction.
+function Sweep({ dur = '7s' }) {
+  if (reducedMotion()) return null
+  const trail = [0, 7, 14, 21, 28, 35, 42, 49].map(off => {
+    const rad = -off * Math.PI / 180
+    return { x: (100 * Math.sin(rad)).toFixed(1), y: (-100 * Math.cos(rad)).toFixed(1), o: Math.max(0, 0.85 - off * 0.017) }
+  })
+  return (
+    <g className="sweep">
+      {trail.map((p, i) => <line key={i} x1="0" y1="0" x2={p.x} y2={p.y} style={{ opacity: p.o }} />)}
+      <animateTransform attributeName="transform" type="rotate" from="0 0 0" to="360 0 0" dur={dur} repeatCount="indefinite" />
+    </g>
+  )
+}
+
+function ScopeRings({ radius, labelled }) {
   const rings = [1 / 3, 2 / 3, 1]
   return (
-    <svg className="radar" viewBox="-110 -110 220 220" role="img" aria-label="Radar view of nearby aircraft">
+    <>
       {rings.map(f => (
         <g key={f}>
           <circle className="ring" r={100 * f} />
-          <text className="ringlabel" x="3" y={-100 * f + 11}>{Math.round(radius * f)} nm</text>
+          {labelled && <text className="ringlabel" x="3" y={-100 * f + 11}>{Math.round(radius * f)} nm</text>}
         </g>
       ))}
       <line className="ring" x1="0" y1="-100" x2="0" y2="100" />
       <line className="ring" x1="-100" y1="0" x2="100" y2="0" />
+    </>
+  )
+}
+
+function Radar({ flights, radius, selected, onSelect, heading }) {
+  return (
+    <svg className="radar" viewBox="-110 -110 220 220" role="img" aria-label="Radar view of nearby aircraft">
+      <defs>
+        <filter id="glow" x="-80%" y="-80%" width="260%" height="260%">
+          <feGaussianBlur stdDeviation="1.6" result="b" />
+          <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
+      </defs>
+      <ScopeRings radius={radius} labelled />
+      <Sweep />
       {heading != null && (
         <path className="facing mobile-only" d="M0,-26 L11,4 L0,-6 L-11,4 Z" transform={`rotate(${heading})`} />
       )}
-      <circle className="me" r="4" />
+      <g className="ownship">
+        <circle className="me-pulse" r="4" />
+        <circle className="me-dot" r="4" />
+      </g>
       {flights.map(a => {
         const d = Math.min(a.dst / radius, 1) * 100
         const ang = (a.dir - 90) * Math.PI / 180
@@ -37,6 +71,25 @@ function Radar({ flights, radius, selected, onSelect, heading }) {
           </path>
         )
       })}
+    </svg>
+  )
+}
+
+function Scope() {
+  return (
+    <svg className="scope" viewBox="-110 -110 220 220" aria-hidden="true">
+      <defs>
+        <filter id="glow" x="-80%" y="-80%" width="260%" height="260%">
+          <feGaussianBlur stdDeviation="1.6" result="b" />
+          <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
+      </defs>
+      <ScopeRings />
+      <Sweep dur="9s" />
+      <g className="ownship">
+        <circle className="me-pulse" r="5" />
+        <circle className="me-dot" r="5" />
+      </g>
     </svg>
   )
 }
@@ -74,6 +127,7 @@ export default function App() {
   const [here, setHere] = useState(null)
   const [radius, setRadius] = useState(10)
   const [flights, setFlights] = useState([])
+  const [loaded, setLoaded] = useState(false)
   const [selected, setSelected] = useState(null)
   const [status, setStatus] = useState({ text: '' })
   const [place, setPlace] = useState(null)
@@ -128,14 +182,20 @@ export default function App() {
   useEffect(() => {
     if (!here) return
     let alive = true
+    setFlights([])
+    setLoaded(false)
+    setStatus({ text: 'Scanning the airspace…' })
     async function tick() {
       try {
         const ac = await fetchFlights(here, radius)
         if (!alive) return
         setFlights(ac)
+        setLoaded(true)
         setStatus({ text: `${ac.length} aircraft nearby · updated ${new Date().toLocaleTimeString()}` })
       } catch (e) {
-        if (alive) setStatus({ text: `Could not reach the flight data feeds (${e.message}). Retrying shortly.`, err: true })
+        if (!alive) return
+        setLoaded(true)
+        setStatus({ text: `Could not reach the flight data feeds (${e.message}). Retrying shortly.`, err: true })
       }
     }
     tick()
@@ -155,25 +215,28 @@ export default function App() {
 
   if (!here) {
     return (
-      <>
-        <h1>Overhead</h1>
-        <p className="sub">Enter a location to see aircraft nearby.</p>
-
-        <div className="loc">
-          <button onClick={useMyLocation}>Use my location</button>
-        </div>
-
+      <section className="hero">
+        <Scope />
+        <h1 className="brand">Overhead</h1>
+        <p className="tagline">See what's flying near you, right now.</p>
+        <button className="cta" onClick={useMyLocation}>Use my location</button>
         <div className="status">{status.err ? <div className="err">{status.text}</div> : status.text}</div>
-      </>
+      </section>
     )
   }
 
   return (
     <>
-      <h1>Overhead</h1>
-      <p className="sub">
-        Aircraft within {radius} nautical miles of {here.lat.toFixed(4)}, {here.lon.toFixed(4)}
-        {place?.town && (place?.state ? ` (${place.town}, ${place.state})` : ` (${place.town})`)}, refreshed every 10 seconds.
+      <header className="topbar">
+        <h1 className="brand">Overhead</h1>
+        <span className={'pulse' + (status.err ? ' down' : '')}>
+          <i className="pulse-dot" />{status.err ? 'signal lost' : 'live'}
+        </span>
+      </header>
+
+      <p className="readout">
+        <span className="place">{place?.town ? `${place.town}${place.state ? ', ' + place.state : ''}` : 'Locating place…'}</span>
+        <span className="coords">{here.lat.toFixed(4)}, {here.lon.toFixed(4)}</span>
       </p>
 
       <div className="loc">
@@ -188,9 +251,11 @@ export default function App() {
       <div className="status">{status.err ? <div className="err">{status.text}</div> : status.text}</div>
 
       <div className="list">
-        {flights.length === 0
-          ? <div className="empty">Clear skies. Nothing is broadcasting its position within range right now. Try a wider radius.</div>
-          : flights.map(a => <FlightRow key={a.id} a={a} selected={a.id === selected} onSelect={setSelected} />)}
+        {!loaded
+          ? <div className="empty">Scanning the airspace…</div>
+          : flights.length === 0
+            ? <div className="empty">Clear skies. Nothing is broadcasting its position within range right now. Try a wider radius.</div>
+            : flights.map(a => <FlightRow key={a.id} a={a} selected={a.id === selected} onSelect={setSelected} />)}
       </div>
     </>
   )

@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import { fetchFlights } from './flights.js'
 import { fetchPlace } from './geocode.js'
 
-const HOME = { lat: 40.7685, lon: -73.4660 } // Plainview, NY
 const REFRESH_MS = 10000
 
 const compass = d => ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(d / 45) % 8]
@@ -72,8 +71,6 @@ function FlightRow({ a, selected, onSelect }) {
 }
 
 export default function App() {
-  const [latIn, setLatIn] = useState(HOME.lat.toString())
-  const [lonIn, setLonIn] = useState(HOME.lon.toString())
   const [here, setHere] = useState(null)
   const [radius, setRadius] = useState(10)
   const [flights, setFlights] = useState([])
@@ -146,21 +143,12 @@ export default function App() {
     return () => { alive = false; clearInterval(t) }
   }, [here, radius])
 
-  function trackHere() {
-    const lat = parseFloat(latIn), lon = parseFloat(lonIn)
-    if (isNaN(lat) || isNaN(lon)) return setStatus({ text: 'Enter a latitude and longitude first.' })
-    setHere({ lat, lon })
-  }
-
   function useMyLocation() {
-    if (!navigator.geolocation) return setStatus({ text: 'Location not available in this browser. Enter coordinates instead.' })
+    if (!navigator.geolocation) return setStatus({ text: 'Location not available in this browser.', err: true })
     setStatus({ text: 'Finding you…' })
     navigator.geolocation.getCurrentPosition(
-      p => {
-        const lat = +p.coords.latitude.toFixed(4), lon = +p.coords.longitude.toFixed(4)
-        setLatIn(String(lat)); setLonIn(String(lon)); setHere({ lat, lon })
-      },
-      e => setStatus({ text: `Location blocked (${e.message}). Enter coordinates and tap Track here.` }),
+      p => setHere({ lat: +p.coords.latitude.toFixed(4), lon: +p.coords.longitude.toFixed(4) }),
+      e => setStatus({ text: `Location blocked (${e.message}).`, err: true }),
       { enableHighAccuracy: false, timeout: 10000 },
     )
   }
@@ -173,9 +161,6 @@ export default function App() {
 
         <div className="loc">
           <button onClick={useMyLocation}>Use my location</button>
-          <input type="number" step="any" inputMode="decimal" placeholder="Latitude" value={latIn} onChange={e => setLatIn(e.target.value)} />
-          <input type="number" step="any" inputMode="decimal" placeholder="Longitude" value={lonIn} onChange={e => setLonIn(e.target.value)} />
-          <button className="quiet" onClick={trackHere}>Track here</button>
         </div>
 
         <div className="status">{status.err ? <div className="err">{status.text}</div> : status.text}</div>

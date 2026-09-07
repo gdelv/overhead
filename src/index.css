@@ -13,12 +13,11 @@ html,body{margin:0;background:linear-gradient(var(--sky),var(--sky-deep)) fixed;
 h1{font-size:34px;line-height:1;margin:0 0 6px;font-weight:600;letter-spacing:-.02em}
 .sub{margin:0 0 18px;color:var(--ink-soft);font-size:15px}
 .loc{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:18px}
-.loc input,.loc select{padding:10px 12px;border:1px solid var(--line);border-radius:8px;
+.loc select{padding:10px 12px;border:1px solid var(--line);border-radius:8px;
   background:var(--card);color:var(--ink);font:inherit;font-size:15px}
-.loc input{width:120px}
 button{padding:10px 14px;border:0;border-radius:8px;background:var(--ink);color:var(--sky);
   font:inherit;font-size:15px;cursor:pointer}
-button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+button:focus-visible,select:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
 button.quiet{background:transparent;color:var(--ink);border:1px solid var(--line)}
 .radar{width:100%;aspect-ratio:1;display:block;margin:0 auto 6px}
 .ring{fill:none;stroke:var(--line);stroke-width:1}

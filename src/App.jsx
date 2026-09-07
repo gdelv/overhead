@@ -8,6 +8,11 @@ const compass = d => ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(d /
 const climb = vr => (vr == null || Math.abs(vr) < 200) ? '' : vr > 0 ? ' ↑ climbing' : ' ↓ descending'
 const reducedMotion = () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
+// Broadcast ICAO emitter category, collapsed server-side to small/medium/large.
+// Only the two extremes get called out — medium is the common case and stays quiet.
+const SIZE_SCALE = { small: 0.7, medium: 1, large: 1.45 }
+const SIZE_WORD = { small: 'light', large: 'heavy' }
+
 // Fading comet-tail behind the sweep line, trailing opposite the spin direction.
 function Sweep({ dur = '7s' }) {
   if (reducedMotion()) return null
@@ -61,13 +66,16 @@ function Radar({ flights, radius, selected, onSelect, heading }) {
         const d = Math.min(a.dst / radius, 1) * 100
         const ang = (a.dir - 90) * Math.PI / 180
         const x = (d * Math.cos(ang)).toFixed(1), y = (d * Math.sin(ang)).toFixed(1)
+        const scale = SIZE_SCALE[a.size] ?? 1
+        const tag = SIZE_WORD[a.size]
+        const route = a.origin && a.destination ? ` · ${a.origin.iata || a.origin.icao} → ${a.destination.iata || a.destination.icao}` : ''
         return (
           <path key={a.id}
             className={'plane' + (a.id === selected ? ' sel' : '')}
             d="M0,-7 L4,5 L0,3 L-4,5 Z"
-            transform={`translate(${x},${y}) rotate(${a.trk || 0})`}
+            transform={`translate(${x},${y}) rotate(${a.trk || 0}) scale(${scale})`}
             onClick={() => onSelect(a.id)}>
-            <title>{a.origin && a.destination ? `${a.call} · ${a.origin.iata || a.origin.icao} → ${a.destination.iata || a.destination.icao}` : a.call}</title>
+            <title>{a.call}{tag ? ` · ${tag}` : ''}{route}</title>
           </path>
         )
       })}
@@ -107,7 +115,7 @@ function Route({ origin, destination }) {
 function FlightRow({ a, selected, onSelect }) {
   const ref = useRef(null)
   useEffect(() => { if (selected) ref.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }) }, [selected])
-  const ident = [a.desc || a.type, a.reg].filter(Boolean).join(' · ')
+  const ident = [a.desc || a.type, a.reg, SIZE_WORD[a.size]].filter(Boolean).join(' · ')
   return (
     <div ref={ref} className={'row' + (selected ? ' sel' : '')} onClick={() => onSelect(a.id)}>
       <div className="call">{a.call}</div>

@@ -20,6 +20,19 @@ function bearing(a, b) {
 // pretend to be a browser.
 const BROWSER_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36'
 
+// ICAO ADS-B emitter category (broadcast by the aircraft itself, not
+// inferred from type) collapsed to a 3-tier size for the radar glyph.
+// Absent category (common on older transponders) is left null rather than
+// guessed, and rendered as the medium/default size.
+const SMALL_CATS = new Set(['A1', 'A7', 'B1', 'B2', 'B3', 'B4', 'B6'])
+const LARGE_CATS = new Set(['A4', 'A5', 'A6'])
+function sizeFromCategory(cat) {
+  if (!cat) return null
+  if (SMALL_CATS.has(cat)) return 'small'
+  if (LARGE_CATS.has(cat)) return 'large'
+  return 'medium'
+}
+
 async function fromAdsbLol(h, r) {
   const res = await fetch(`https://api.adsb.lol/v2/point/${h.lat}/${h.lon}/${r}`, {
     headers: { 'user-agent': BROWSER_UA },
@@ -32,6 +45,7 @@ async function fromAdsbLol(h, r) {
     reg: a.r || '', type: a.t || '', desc: a.desc || '',
     alt: a.alt_baro === 'ground' ? 0 : a.alt_baro,
     gs: a.gs, trk: a.track, vr: a.baro_rate,
+    size: sizeFromCategory(a.category),
     lat: a.lat, lon: a.lon,
     dst: a.dst ?? nm(h, a), dir: a.dir ?? bearing(h, a),
   }))
@@ -50,6 +64,7 @@ async function fromOpenSky(h, r) {
       alt: s[7] != null ? Math.round(s[7] * 3.281) : null,
       gs: s[9] != null ? Math.round(s[9] * 1.944) : null,
       trk: s[10], vr: s[11] != null ? Math.round(s[11] * 196.85) : null,
+      size: null, // OpenSky's state vectors don't carry emitter category
       lat: p.lat, lon: p.lon, dst: nm(h, p), dir: bearing(h, p),
     }
   }).filter(a => a.dst <= r)

@@ -74,16 +74,17 @@ function FlightRow({ a, selected, onSelect }) {
 export default function App() {
   const [latIn, setLatIn] = useState(HOME.lat.toString())
   const [lonIn, setLonIn] = useState(HOME.lon.toString())
-  const [here, setHere] = useState(HOME)
+  const [here, setHere] = useState(null)
   const [radius, setRadius] = useState(10)
   const [flights, setFlights] = useState([])
   const [selected, setSelected] = useState(null)
-  const [status, setStatus] = useState({ text: 'Starting…' })
+  const [status, setStatus] = useState({ text: '' })
   const [place, setPlace] = useState(null)
   const [compassOn, setCompassOn] = useState(false)
   const [heading, setHeading] = useState(null)
 
   useEffect(() => {
+    if (!here) return
     let alive = true
     setPlace(null)
     fetchPlace(here).then(p => { if (alive) setPlace(p) }).catch(() => { if (alive) setPlace(null) })
@@ -116,6 +117,7 @@ export default function App() {
   }
 
   useEffect(() => {
+    if (!here) return
     let alive = true
     async function tick() {
       try {
@@ -151,6 +153,24 @@ export default function App() {
     )
   }
 
+  if (!here) {
+    return (
+      <>
+        <h1>Overhead</h1>
+        <p className="sub">Enter a location to see aircraft nearby.</p>
+
+        <div className="loc">
+          <button onClick={useMyLocation}>Use my location</button>
+          <input type="number" step="any" inputMode="decimal" placeholder="Latitude" value={latIn} onChange={e => setLatIn(e.target.value)} />
+          <input type="number" step="any" inputMode="decimal" placeholder="Longitude" value={lonIn} onChange={e => setLonIn(e.target.value)} />
+          <button className="quiet" onClick={trackHere}>Track here</button>
+        </div>
+
+        <div className="status">{status.err ? <div className="err">{status.text}</div> : status.text}</div>
+      </>
+    )
+  }
+
   return (
     <>
       <h1>Overhead</h1>
@@ -160,10 +180,6 @@ export default function App() {
       </p>
 
       <div className="loc">
-        <button onClick={useMyLocation}>Use my location</button>
-        <input type="number" step="any" inputMode="decimal" placeholder="Latitude" value={latIn} onChange={e => setLatIn(e.target.value)} />
-        <input type="number" step="any" inputMode="decimal" placeholder="Longitude" value={lonIn} onChange={e => setLonIn(e.target.value)} />
-        <button className="quiet" onClick={trackHere}>Track here</button>
         <select value={radius} onChange={e => setRadius(+e.target.value)}>
           {[10, 30, 60, 100].map(r => <option key={r} value={r}>{r} nm</option>)}
         </select>

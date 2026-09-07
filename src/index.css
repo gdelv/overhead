@@ -116,6 +116,8 @@ button.cta:hover{box-shadow:0 0 0 1px rgba(255,181,69,.55), 0 0 34px -4px var(--
 .route{grid-column:1/-1;font-family:var(--font-mono);font-size:13px;font-weight:500;
   color:var(--ink-soft);letter-spacing:.01em}
 .route .arrow{color:var(--cyan)}
+.route-code{color:var(--ink);font-weight:600}
+.route-city{font-family:var(--font-sans);font-weight:400}
 .route-unknown{font-style:italic;opacity:.65;font-weight:400}
 .meta{grid-column:1/-1;font-family:var(--font-mono);color:var(--ink-soft);font-size:13px;line-height:1.6}
 .empty{text-align:center;color:var(--ink-soft);padding:34px 16px;line-height:1.6;font-size:14px}

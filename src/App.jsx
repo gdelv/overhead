@@ -120,12 +120,19 @@ function Scope() {
   )
 }
 
+function AirportLabel({ ap }) {
+  const code = ap.iata || ap.icao
+  return <>
+    <span className="route-code">{code}</span>
+    {ap.city && <span className="route-city"> ({ap.city})</span>}
+  </>
+}
+
 function Route({ origin, destination }) {
-  const code = ap => ap.iata || ap.icao
   if (!origin || !destination) return <div className="route route-unknown">No filed route</div>
   return (
     <div className="route" title={`${origin.name} → ${destination.name}`}>
-      {code(origin)} <span className="arrow">→</span> {code(destination)}
+      <AirportLabel ap={origin} /> <span className="arrow">→</span> <AirportLabel ap={destination} />
     </div>
   )
 }

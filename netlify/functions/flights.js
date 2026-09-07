@@ -55,6 +55,74 @@ async function fromOpenSky(h, r) {
   }).filter(a => a.dst <= r)
 }
 
+// Route (origin/destination) lookups, keyed by callsign. Persists across warm
+// invocations of this function so repeat polls for the same flights are free.
+const routeCache = new Map()
+const ROUTE_TTL_MS = 60 * 60 * 1000
+
+async function fetchRoutes(planes) {
+  const res = await fetch('https://api.adsb.lol/api/0/routeset', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'user-agent': BROWSER_UA,
+      // The routeset endpoint additionally checks Origin/Referer against its
+      // own map frontend, unlike the other adsb.lol endpoints.
+      origin: 'https://globe.adsb.lol',
+      referer: 'https://globe.adsb.lol/',
+    },
+    body: JSON.stringify({ planes }),
+  })
+  if (!res.ok) throw new Error('routeset ' + res.status)
+  return res.json()
+}
+
+function airport(a) {
+  return a ? { icao: a.icao, iata: a.iata, name: a.name, city: a.location } : null
+}
+
+async function attachRoutes(ac) {
+  const now = Date.now()
+  const need = [], seen = new Set()
+  for (const a of ac) {
+    const cs = (a.call || '').trim()
+    if (!cs || seen.has(cs)) continue
+    seen.add(cs)
+    const cached = routeCache.get(cs)
+    if (!cached || now - cached.ts >= ROUTE_TTL_MS) need.push({ callsign: cs, lat: a.lat, lng: a.lon })
+  }
+
+  // The routeset endpoint 400s past 100 planes per request.
+  const ROUTESET_BATCH = 100
+  const batches = []
+  for (let i = 0; i < need.length; i += ROUTESET_BATCH) batches.push(need.slice(i, i + ROUTESET_BATCH))
+
+  await Promise.all(batches.map(async batch => {
+    try {
+      const routes = await fetchRoutes(batch)
+      for (const r of routes) {
+        const [origin, destination] = r._airports || []
+        routeCache.set(r.callsign, {
+          origin: airport(origin),
+          destination: airport(destination),
+          plausible: r.plausible ?? false,
+          ts: now,
+        })
+      }
+    } catch {
+      // Route info is a nice-to-have; leave this batch's aircraft without it on failure.
+    }
+  }))
+
+  for (const a of ac) {
+    const r = routeCache.get((a.call || '').trim())
+    if (r?.plausible && r.origin && r.destination) {
+      a.origin = r.origin
+      a.destination = r.destination
+    }
+  }
+}
+
 export default async (request) => {
   const url = new URL(request.url)
   const lat = parseFloat(url.searchParams.get('lat'))
@@ -84,6 +152,7 @@ export default async (request) => {
   }
 
   ac.sort((a, b) => a.dst - b.dst)
+  await attachRoutes(ac)
 
   return new Response(JSON.stringify({ ac }), {
     status: 200,

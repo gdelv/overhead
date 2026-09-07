@@ -30,11 +30,21 @@ function Radar({ flights, radius, selected, onSelect }) {
             d="M0,-7 L4,5 L0,3 L-4,5 Z"
             transform={`translate(${x},${y}) rotate(${a.trk || 0})`}
             onClick={() => onSelect(a.id)}>
-            <title>{a.call}</title>
+            <title>{a.origin && a.destination ? `${a.call} · ${a.origin.iata || a.origin.icao} → ${a.destination.iata || a.destination.icao}` : a.call}</title>
           </path>
         )
       })}
     </svg>
+  )
+}
+
+function Route({ origin, destination }) {
+  if (!origin || !destination) return null
+  const code = ap => ap.iata || ap.icao
+  return (
+    <div className="route" title={`${origin.name} → ${destination.name}`}>
+      {code(origin)} <span className="arrow">→</span> {code(destination)}
+    </div>
   )
 }
 
@@ -46,6 +56,7 @@ function FlightRow({ a, selected, onSelect }) {
     <div ref={ref} className={'row' + (selected ? ' sel' : '')} onClick={() => onSelect(a.id)}>
       <div className="call">{a.call}</div>
       <div className="dist">{a.dst.toFixed(1)} nm {compass(a.dir)}</div>
+      <Route origin={a.origin} destination={a.destination} />
       <div className="meta">
         {ident && <>{ident}<br /></>}
         {a.alt != null ? (a.alt === 0 ? 'On the ground' : a.alt.toLocaleString() + ' ft' + climb(a.vr)) : 'Altitude unknown'}

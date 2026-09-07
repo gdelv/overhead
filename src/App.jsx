@@ -85,10 +85,11 @@ function Radar({ flights, radius, selected, onSelect, heading }) {
         const ang = (a.dir - 90) * Math.PI / 180
         const x = (d * Math.cos(ang)).toFixed(1), y = (d * Math.sin(ang)).toFixed(1)
         const tag = SIZE_WORD[a.size]
-        const route = a.origin && a.destination ? ` · ${a.origin.iata || a.origin.icao} → ${a.destination.iata || a.destination.icao}` : ''
+        const routed = a.origin && a.destination
+        const route = routed ? ` · ${a.origin.iata || a.origin.icao} → ${a.destination.iata || a.destination.icao}` : ''
         return (
           <path key={a.id}
-            className={'plane' + (a.id === selected ? ' sel' : '')}
+            className={'plane' + (routed ? ' routed' : '') + (a.id === selected ? ' sel' : '')}
             d={PLANE_SHAPE[a.size] || PLANE_SHAPE.medium}
             transform={`translate(${x},${y}) rotate(${a.trk || 0})`}
             onClick={() => onSelect(a.id)}>
@@ -155,9 +156,11 @@ export default function App() {
   const [loaded, setLoaded] = useState(false)
   const [selected, setSelected] = useState(null)
   const [status, setStatus] = useState({ text: '' })
+  const [updatedAt, setUpdatedAt] = useState(null)
   const [place, setPlace] = useState(null)
   const [compassOn, setCompassOn] = useState(false)
   const [heading, setHeading] = useState(null)
+  const [routedOnly, setRoutedOnly] = useState(false)
 
   useEffect(() => {
     if (!here) return
@@ -209,6 +212,7 @@ export default function App() {
     let alive = true
     setFlights([])
     setLoaded(false)
+    setUpdatedAt(null)
     setStatus({ text: 'Scanning the airspace…' })
     async function tick() {
       try {
@@ -216,7 +220,8 @@ export default function App() {
         if (!alive) return
         setFlights(ac)
         setLoaded(true)
-        setStatus({ text: `${ac.length} aircraft nearby · updated ${new Date().toLocaleTimeString()}` })
+        setUpdatedAt(new Date())
+        setStatus({ text: '' })
       } catch (e) {
         if (!alive) return
         setLoaded(true)
@@ -250,6 +255,11 @@ export default function App() {
     )
   }
 
+  const visible = routedOnly ? flights.filter(a => a.origin && a.destination) : flights
+  const statusText = status.text || (updatedAt
+    ? `${routedOnly ? `${visible.length} routed of ${flights.length}` : `${flights.length} aircraft`} nearby · updated ${updatedAt.toLocaleTimeString()}`
+    : '')
+
   return (
     <>
       <header className="topbar">
@@ -268,19 +278,24 @@ export default function App() {
         <select value={radius} onChange={e => setRadius(+e.target.value)}>
           {[10, 30, 60, 100].map(r => <option key={r} value={r}>{r} nm</option>)}
         </select>
+        <button className={'quiet' + (routedOnly ? ' active' : '')} onClick={() => setRoutedOnly(v => !v)}>Routed only</button>
         <button className="quiet mobile-only" onClick={enableCompass}>{compassOn ? 'Compass on' : 'Enable compass'}</button>
       </div>
 
-      <Radar flights={flights} radius={radius} selected={selected} onSelect={setSelected} heading={compassOn ? heading : null} />
+      <Radar flights={visible} radius={radius} selected={selected} onSelect={setSelected} heading={compassOn ? heading : null} />
 
-      <div className="status">{status.err ? <div className="err">{status.text}</div> : status.text}</div>
+      <div className="status">{status.err ? <div className="err">{statusText}</div> : statusText}</div>
 
       <div className="list">
         {!loaded
           ? <div className="empty">Scanning the airspace…</div>
-          : flights.length === 0
-            ? <div className="empty">Clear skies. Nothing is broadcasting its position within range right now. Try a wider radius.</div>
-            : flights.map(a => <FlightRow key={a.id} a={a} selected={a.id === selected} onSelect={setSelected} />)}
+          : visible.length === 0
+            ? <div className="empty">
+                {flights.length === 0
+                  ? 'Clear skies. Nothing is broadcasting its position within range right now. Try a wider radius.'
+                  : 'Nothing nearby has a filed route right now. Turn off Routed only to see everything.'}
+              </div>
+            : visible.map(a => <FlightRow key={a.id} a={a} selected={a.id === selected} onSelect={setSelected} />)}
       </div>
     </>
   )

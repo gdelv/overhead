@@ -11,6 +11,11 @@
   --ink:#e7eef4; --ink-soft:#7893a8;
   --amber:#ffb545; --on-amber:#0a0e07;
   --cyan:#57e0c9;
+  --yellow:#ffde45;
+  /* Selection accent: the "magenta line" convention from real glass-cockpit
+     FMS displays (Garmin/Boeing), where magenta marks the active/selected
+     flight plan — distinct from amber (self), yellow (routed) and cyan. */
+  --magenta:#ff53c7;
   --danger:#ff6b5b; --danger-dim:rgba(255,107,91,.14);
 }
 @media (prefers-color-scheme: light){
@@ -21,6 +26,8 @@
     --ink:#10202f; --ink-soft:#5b7286;
     --amber:#c9701a; --on-amber:#ffffff;
     --cyan:#0f9c86;
+    --yellow:#a8860a;
+    --magenta:#b81c8f;
     --danger:#c23b1f; --danger-dim:rgba(194,59,31,.1);
   }
 }
@@ -65,6 +72,7 @@ button{font:inherit;cursor:pointer;border:1px solid transparent;border-radius:6p
 button:focus-visible,select:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
 button.quiet{background:var(--panel);color:var(--ink-soft);border-color:var(--line)}
 button.quiet:hover{color:var(--ink);border-color:var(--amber)}
+button.quiet.active{color:var(--yellow);border-color:var(--yellow)}
 button.cta{background:var(--amber);color:var(--on-amber);padding:14px 30px;font-size:16px;
   border-radius:8px;box-shadow:0 0 0 1px rgba(255,181,69,.35), 0 0 26px -6px var(--amber)}
 button.cta:hover{box-shadow:0 0 0 1px rgba(255,181,69,.55), 0 0 34px -4px var(--amber)}
@@ -86,7 +94,8 @@ button.cta:hover{box-shadow:0 0 0 1px rgba(255,181,69,.55), 0 0 34px -4px var(--
 }
 @keyframes pulse{0%{transform:scale(1);opacity:.55}75%{transform:scale(3.4);opacity:0}100%{opacity:0}}
 .plane{fill:var(--ink);cursor:pointer;filter:url(#glow)}
-.plane.sel{fill:var(--amber)}
+.plane.routed{fill:var(--yellow)}
+.plane.sel{fill:var(--magenta)}
 @media (prefers-reduced-motion:no-preference){ .plane{transition:transform .8s ease} }
 .facing{fill:var(--amber);opacity:.4;filter:url(#glow)}
 
@@ -101,7 +110,7 @@ button.cta:hover{box-shadow:0 0 0 1px rgba(255,181,69,.55), 0 0 34px -4px var(--
 .row:hover{background:var(--panel-raised)}
 .row.sel{background:var(--panel-raised)}
 .row.sel::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;
-  background:var(--amber);box-shadow:0 0 8px var(--amber)}
+  background:var(--magenta);box-shadow:0 0 8px var(--magenta)}
 .call{font-family:var(--font-mono);font-size:18px;font-weight:600;letter-spacing:.01em}
 .dist{font-family:var(--font-mono);font-size:15px;font-weight:600;text-align:right;white-space:nowrap}
 .route{grid-column:1/-1;font-family:var(--font-mono);font-size:13px;font-weight:500;
